@@ -42,7 +42,7 @@ class PDFChunker:
             chunks = text_splitter.split_text(combined_document)
             self.logger.info(f"Split the document into {len(chunks)} chunks.")
             self.logger.debug(f"First chunk preview: {chunks[0][:300]}")
-            # Write chunks to file
+
             return chunks
 
         except Exception as e:
