@@ -22,6 +22,7 @@ class PDFChunker:
             documents = loader.load()
             self.logger.info(f"Loaded {len(documents)} pages from PDF.")
 
+            # Combine all pages/documents into ONE single string
             combined_document = "\n\n".join(doc.page_content for doc in documents)
             self.logger.debug(f"First 500 characters of combined document: {combined_document[:500]}")
 
