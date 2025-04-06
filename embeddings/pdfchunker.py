@@ -25,6 +25,12 @@ class PDFChunker:
             combined_document = "\n\n".join(doc.page_content for doc in documents)
             self.logger.debug(f"First 500 characters of combined document: {combined_document[:500]}")
 
+            # Write combined document only when running this file directly
+            if __name__ == "__main__":
+                with open("output_combined_document.txt", "w", encoding="utf-8") as f:
+                    f.write(combined_document.encode('unicode_escape').decode('utf-8'))
+            
+
             # Split into chunks
             self.logger.info(f"Initializing text splitter with chunk size {self.chunk_size} and overlap {self.chunk_overlap}.")
             text_splitter = RecursiveCharacterTextSplitter(
