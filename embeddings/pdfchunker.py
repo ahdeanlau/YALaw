@@ -3,7 +3,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader
 
 class PDFChunker:
-    def __init__(self, chunk_size: int = 3000, chunk_overlap: int = 600, separators: list[str] = None):
+    def __init__(self, chunk_size: int = 2000, chunk_overlap: int = 600, separators: list[str] = None):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.separators = separators or ["CHAPTER","\n \n", "\n", ".", " ", ""]
