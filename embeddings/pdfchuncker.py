@@ -3,9 +3,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader
 
 class PDFChunker:
-    def __init__(self, chunk_size: int = 5000, chunk_overlap: int = 1000):
+    def __init__(self, chunk_size: int = 5000, chunk_overlap: int = 1000, separators: list[str] = None):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.separators = separators or ["\n\n", "\n", ".", " ", ""]
 
         # Configure logger
         logging.basicConfig(level=logging.INFO)
@@ -29,7 +30,7 @@ class PDFChunker:
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
-                separators=["\n\n", "\n", ".", " ", ""]
+                separators=self.separators
             )
 
             chunks = text_splitter.split_text(combined_document)
