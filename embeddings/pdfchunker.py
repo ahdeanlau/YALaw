@@ -30,7 +30,6 @@ class PDFChunker:
             if __name__ == "__main__":
                 with open("output_combined_document.txt", "w", encoding="utf-8") as f:
                     f.write(combined_document.encode('unicode_escape').decode('utf-8'))
-            
 
             # Split into chunks
             self.logger.info(f"Initializing text splitter with chunk size {self.chunk_size} and overlap {self.chunk_overlap}.")
