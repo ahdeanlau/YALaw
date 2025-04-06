@@ -3,8 +3,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader
 
 class PDFChunker:
-    def __init__(self, pdf_path: str, chunk_size: int = 5000, chunk_overlap: int = 1000):
-        self.pdf_path = pdf_path
+    def __init__(self, chunk_size: int = 5000, chunk_overlap: int = 1000):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
@@ -12,16 +11,21 @@ class PDFChunker:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-    def chunk_pdf(self, output_file: str):
+    def chunk_pdf(self, pdf_path: str, output_file: str):
         try:
+            self.logger.info(f"Starting PDF chunking for: {pdf_path}")
+
             # Load PDF
-            loader = PyMuPDFLoader(self.pdf_path)
+            self.logger.info("Initializing PyMuPDFLoader.")
+            loader = PyMuPDFLoader(pdf_path)
             documents = loader.load()
-            combined_document = "\n\n".join(doc.page_content for doc in documents)
-            
             self.logger.info(f"Loaded {len(documents)} pages from PDF.")
-            
+
+            combined_document = "\n\n".join(doc.page_content for doc in documents)
+            self.logger.debug(f"First 500 characters of combined document: {combined_document[:500]}")
+
             # Split into chunks
+            self.logger.info(f"Initializing text splitter with chunk size {self.chunk_size} and overlap {self.chunk_overlap}.")
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
@@ -30,10 +34,14 @@ class PDFChunker:
 
             chunks = text_splitter.split_text(combined_document)
             self.logger.info(f"Split the document into {len(chunks)} chunks.")
+            self.logger.debug(f"First chunk preview: {chunks[0][:300]}")
 
             with open(output_file, "w", encoding="utf-8") as f:
-                for chunk in chunks:
+                for idx, chunk in enumerate(chunks):
+                    self.logger.debug(f"Writing chunk {idx + 1}/{len(chunks)} to file.")
                     f.write(chunk + "\n-------------------------\n")
+
+            self.logger.info(f"Successfully wrote all chunks to {output_file}.")
 
         except Exception as e:
             self.logger.error("An error occurred during processing.", exc_info=True)
@@ -41,5 +49,5 @@ class PDFChunker:
 
 # Usage example
 if __name__ == "__main__":
-    pdf_processor = PDFChunker("embeddings/malaysia_penal_code.pdf")
-    pdf_processor.chunk_pdf("output_chunks.txt")
+    pdf_processor = PDFChunker()
+    pdf_processor.chunk_pdf("embeddings/malaysia_penal_code.pdf", "output_chunks.txt")
