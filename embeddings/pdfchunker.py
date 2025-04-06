@@ -6,7 +6,7 @@ class PDFChunker:
     def __init__(self, chunk_size: int = 3000, chunk_overlap: int = 600, separators: list[str] = None):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.separators = separators or ["\n\n", "\n", ".", " ", ""]
+        self.separators = separators or ["CHAPTER","\n \n", "\n", ".", " ", ""]
 
         # Configure logger
         logging.basicConfig(level=logging.INFO)
