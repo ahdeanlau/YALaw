@@ -1,5 +1,5 @@
 import logging
-from langchain_text_splitters import TokenTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader
 
 class PDFChunker:
@@ -27,7 +27,7 @@ class PDFChunker:
 
             # Split into chunks
             self.logger.info(f"Initializing text splitter with chunk size {self.chunk_size} and overlap {self.chunk_overlap}.")
-            text_splitter = TokenTextSplitter(
+            text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
                 separators=self.separators
