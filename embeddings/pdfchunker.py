@@ -43,12 +43,9 @@ class PDFChunker:
             self.logger.info(f"Split the document into {len(chunks)} chunks.")
             self.logger.debug(f"First chunk preview: {chunks[0][:300]}")
 
-            with open(output_file, "w", encoding="utf-8") as f:
-                for idx, chunk in enumerate(chunks):
-                    self.logger.debug(f"Writing chunk {idx + 1}/{len(chunks)} to file.")
-                    f.write(chunk + "\n-------------------------\n")
-
-            self.logger.info(f"Successfully wrote all chunks to {output_file}.")
+            # Write chunks to file
+            return chunks
+            self.logger.info(f"Successfully return all chunks.")
 
         except Exception as e:
             self.logger.error("An error occurred during processing.", exc_info=True)
