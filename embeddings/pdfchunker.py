@@ -57,7 +57,7 @@ class PDFChunker:
 # Usage example
 if __name__ == "__main__":
     pdf_processor = PDFChunker()
-    pdf_processor.chunk_pdf("embeddings/malaysia_penal_code.pdf", "output_chunks.txt")
+    chunks = pdf_processor.chunk_pdf("embeddings/malaysia_penal_code.pdf")
 
     with open("output_chunks.txt", "w", encoding="utf-8") as f:
         for idx, chunk in enumerate(chunks):
