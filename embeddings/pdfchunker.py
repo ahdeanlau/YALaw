@@ -12,7 +12,7 @@ class PDFChunker:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-    def chunk_pdf(self, pdf_path: str, output_file: str):
+    def chunk_pdf(self, pdf_path: str) -> list[str]:
         try:
             self.logger.info(f"Starting PDF chunking for: {pdf_path}")
 
@@ -52,3 +52,8 @@ class PDFChunker:
 if __name__ == "__main__":
     pdf_processor = PDFChunker()
     pdf_processor.chunk_pdf("embeddings/malaysia_penal_code.pdf", "output_chunks.txt")
+
+    with open("output_chunks.txt", "w", encoding="utf-8") as f:
+        for idx, chunk in enumerate(chunks):
+            pdf_processor.logger.debug(f"Writing chunk {idx + 1}/{len(chunks)} to file.")
+            f.write(chunk + "\n-------------------------\n")
