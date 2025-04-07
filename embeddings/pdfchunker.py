@@ -51,6 +51,27 @@ class PDFChunker:
         except Exception as e:
             self.logger.error("An error occurred during processing.", exc_info=True)
 
+    def upload_chunks_to_duckdb(self, chunks: list[str], source_file: str, db_path: str = "chunks.duckdb"):
+        import duckdb
+        import pandas as pd
+
+        df = pd.DataFrame({
+            "chunk_id": range(len(chunks)),
+            "chunk_text": chunks,
+            "source_file": source_file
+        })
+
+        con = duckdb.connect(db_path)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS pdf_chunks (
+                chunk_id INTEGER,
+                chunk_text TEXT,
+                source_file TEXT
+            )
+        """)
+        con.execute("INSERT INTO pdf_chunks SELECT * FROM df")
+
+        self.logger.info(f"✅ Uploaded {len(chunks)} chunks from {source_file} to {db_path}")
 
 # Usage example
 if __name__ == "__main__":
