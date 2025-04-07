@@ -1,6 +1,9 @@
 import logging
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader
+import duckdb
+import pandas as pd
+import os
 
 class PDFChunker:
     def __init__(self, chunk_size: int = 3000, chunk_overlap: int = 600, separators: list[str] = None):
