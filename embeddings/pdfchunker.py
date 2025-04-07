@@ -73,6 +73,13 @@ class PDFChunker:
 
         self.logger.info(f"✅ Uploaded {len(chunks)} chunks from {source_file} to {db_path}")
 
+    def chunk_and_upload_to_duckdb(self, pdf_path: str, db_path: str = "chunks.duckdb"):
+        chunks = self.chunk_pdf(pdf_path)
+        if chunks:
+            self.upload_chunks_to_duckdb(chunks, source_file=pdf_path, db_path=db_path)
+        else:
+            self.logger.warning("No chunks returned from chunk_pdf; skipping upload.")
+
 # Usage example
 if __name__ == "__main__":
     pdf_processor = PDFChunker()
