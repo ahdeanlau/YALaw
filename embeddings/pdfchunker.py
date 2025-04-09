@@ -56,7 +56,8 @@ class PDFChunker:
         self,
         chunks: list[str],
         source_file: str,
-        parquet_path: str = "raw_chunks.parquet"
+        db_path: str = "raw_chunks.duckdb",
+        table_name: str = "raw_chunks"
     ):
         # Prepare records: just id + payload (no vector yet)
         records = []
@@ -72,17 +73,19 @@ class PDFChunker:
         df = pd.DataFrame(records)
 
         # Ensure the output directory exists
-        os.makedirs(os.path.dirname(parquet_path) or ".", exist_ok=True)
+        os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
 
-        # Save to Parquet using DuckDB
-        con = duckdb.connect()
+        # Save to DuckDB
+        con = duckdb.connect(db_path)
         con.register("df", df)
         con.execute(f"""
-            COPY df TO '{parquet_path}'
-            (FORMAT PARQUET, OVERWRITE TRUE)
+            CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM df
+        """)
+        con.execute(f"""
+            INSERT INTO {table_name} SELECT * FROM df
         """)
 
-        self.logger.info(f"✅ Saved {len(chunks)} raw chunks to Parquet (no vectors yet): {parquet_path}")
+        self.logger.info(f"✅ Saved {len(chunks)} raw chunks to DuckDB table '{table_name}': {db_path}")
 
     def chunk_and_upload_to_duckdb(self, pdf_path: str, db_path: str = "chunks.duckdb"):
         chunks = self.chunk_pdf(pdf_path)
