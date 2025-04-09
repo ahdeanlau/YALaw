@@ -4,6 +4,7 @@ from langchain_community.document_loaders import PyMuPDFLoader
 import duckdb
 import pandas as pd
 import os
+import json
 
 class PDFChunker:
     def __init__(self, chunk_size: int = 3000, chunk_overlap: int = 600, separators: list[str] = None):
@@ -51,27 +52,37 @@ class PDFChunker:
         except Exception as e:
             self.logger.error("An error occurred during processing.", exc_info=True)
 
-    def upload_chunks_to_duckdb(self, chunks: list[str], source_file: str, db_path: str = "chunks.duckdb"):
-        import duckdb
-        import pandas as pd
+    def upload_raw_chunks_to_duckdb(
+        self,
+        chunks: list[str],
+        source_file: str,
+        parquet_path: str = "raw_chunks.parquet"
+    ):
+        # Prepare records: just id + payload (no vector yet)
+        records = []
+        for i, chunk in enumerate(chunks):
+            records.append({
+                "id": i,
+                "payload": json.dumps({
+                    "chunk_text": chunk,
+                    "source_file": source_file
+                })
+            })
 
-        df = pd.DataFrame({
-            "chunk_id": range(len(chunks)),
-            "chunk_text": chunks,
-            "source_file": source_file
-        })
+        df = pd.DataFrame(records)
 
-        con = duckdb.connect(db_path)
-        con.execute("""
-            CREATE TABLE IF NOT EXISTS pdf_chunks (
-                chunk_id INTEGER,
-                chunk_text TEXT,
-                source_file TEXT
-            )
+        # Ensure the output directory exists
+        os.makedirs(os.path.dirname(parquet_path) or ".", exist_ok=True)
+
+        # Save to Parquet using DuckDB
+        con = duckdb.connect()
+        con.register("df", df)
+        con.execute(f"""
+            COPY df TO '{parquet_path}'
+            (FORMAT PARQUET, OVERWRITE TRUE)
         """)
-        con.execute("INSERT INTO pdf_chunks SELECT * FROM df")
 
-        self.logger.info(f"✅ Uploaded {len(chunks)} chunks from {source_file} to {db_path}")
+        self.logger.info(f"✅ Saved {len(chunks)} raw chunks to Parquet (no vectors yet): {parquet_path}")
 
     def chunk_and_upload_to_duckdb(self, pdf_path: str, db_path: str = "chunks.duckdb"):
         chunks = self.chunk_pdf(pdf_path)
@@ -82,10 +93,12 @@ class PDFChunker:
 
 # Usage example
 if __name__ == "__main__":
-    pdf_processor = PDFChunker()
-    chunks = pdf_processor.chunk_pdf("embeddings/malaysia_penal_code.pdf")
+    # pdf_processor = PDFChunker()
+    # chunks = pdf_processor.chunk_pdf("embeddings/malaysia_penal_code.pdf")
+    # pdf_processor.upload_raw_chunks_to_duckdb(chunks, source_file="malaysia_penal_code.pdf")
 
-    with open("output_chunks.txt", "w", encoding="utf-8") as f:
-        for idx, chunk in enumerate(chunks):
-            pdf_processor.logger.debug(f"Writing chunk {idx + 1}/{len(chunks)} to file.")
-            f.write(chunk + "\n-------------------------\n")
+    pd.set_option('display.max_columns', None)  # Show all columns
+    pd.set_option('display.max_rows', None)     # Show all rows
+    pd.set_option('display.max_colwidth', None) # Show full column content
+    df = duckdb.query("SELECT * FROM 'raw_chunks.parquet'").df()
+    print(df)
