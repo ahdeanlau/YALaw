@@ -7,6 +7,7 @@ from config.config_env import OPENAI_API_KEY
 from typing import List, Dict
 import pandas as pd
 import os
+from qdrant_client.http.models import PointStruct
 
 class OpenAIEmbedder:
     def __init__(self, model: str = "text-embedding-3-small"):
@@ -28,8 +29,8 @@ class OpenAIEmbedder:
             })
         return records
 
-    def embed_text_chunks(self, parquet_path: str) -> List[Dict]:
-        """Returns a list of Qdrant-compatible points with id, vector, payload."""
+    def embed_text_chunks(self, parquet_path: str) -> List[PointStruct]:
+        """Returns a list of Qdrant-compatible PointStruct objects."""
         records = self._extract_texts_from_parquet(parquet_path)
         texts = [record["text"] for record in records]
 
@@ -43,29 +44,33 @@ class OpenAIEmbedder:
 
         qdrant_points = []
         for record, vector in zip(records, embeddings):
-            qdrant_points.append({
-                "id": record["id"],
-                "vector": vector,
-                "payload": record["payload"]
-            })
+            qdrant_points.append(
+                PointStruct(
+                    id=record["id"],
+                    vector=vector,
+                    payload=record["payload"]
+                )
+            )
 
         return qdrant_points
     
     def upload_points_to_duckdb(self, points: List[Dict], db_path: str = "embedded_points.duckdb"):
-        # Convert points to DataFrame
         embedded_points_df = pd.DataFrame(points)
 
-        # Ensure the output directory exists
         os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
 
-        # Save to Parquet using DuckDB
         conn = duckdb.connect(db_path)
-        conn.register("df", embedded_points_df)
-        conn.execute(f"""
-            COPY df TO '{db_path}'
-            (FORMAT PARQUET, OVERWRITE TRUE)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS embedded_points (
+                id INTEGER,
+                vector FLOAT[],
+                payload JSON
+            )
         """)
+        conn.register("df", embedded_points_df)
+        conn.execute("INSERT INTO embedded_points SELECT * FROM df")
         conn.close()
+
 
 # Usage example
 if __name__ == "__main__":
