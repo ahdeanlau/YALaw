@@ -1,9 +1,14 @@
 from qdrant_client import QdrantClient, models
+from config.config_env import QDRANT_API_KEY, QDRANT_CLIENT_URL
+
+qdrant_client = QdrantClient(url=QDRANT_CLIENT_URL, api_key=QDRANT_API_KEY)
+
+print(qdrant_client.get_collections())
 
 client = QdrantClient(url="http://localhost:6333")
 
 client.upsert(
-    collection_name="{collection_name}",
+    collection_name="malaysia_acts",
     points=[
         models.PointStruct(
             id=1,
