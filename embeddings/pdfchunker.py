@@ -56,7 +56,7 @@ class PDFChunker:
         self,
         chunks: list[str],
         source_file: str,
-        db_path: str = "raw_chunks.duckdb",
+        db_path: str = "chunks.duckdb",
         table_name: str = "raw_chunks"
     ):
         # Prepare records: just id + payload (no vector yet)
@@ -86,22 +86,34 @@ class PDFChunker:
         """)
 
         self.logger.info(f"✅ Saved {len(chunks)} raw chunks to DuckDB table '{table_name}': {db_path}")
+        con.close()
+        self.logger.info("Closed DuckDB connection.")
 
-    def chunk_and_upload_to_duckdb(self, pdf_path: str, db_path: str = "chunks.duckdb"):
+    def chunk_and_upload_to_duckdb(
+        self,
+        pdf_path: str,
+        db_path: str = "chunks.duckdb",
+        table_name: str = "raw_chunks"
+    ):
         chunks = self.chunk_pdf(pdf_path)
         if chunks:
-            self.upload_chunks_to_duckdb(chunks, source_file=pdf_path, db_path=db_path)
+            self.upload_raw_chunks_to_duckdb(
+                chunks=chunks,
+                source_file=pdf_path,
+                db_path=db_path,
+                table_name=table_name
+            )
         else:
             self.logger.warning("No chunks returned from chunk_pdf; skipping upload.")
 
 # Usage example
 if __name__ == "__main__":
-    # pdf_processor = PDFChunker()
-    # chunks = pdf_processor.chunk_pdf("embeddings/malaysia_penal_code.pdf")
-    # pdf_processor.upload_raw_chunks_to_duckdb(chunks, source_file="malaysia_penal_code.pdf")
+    pdf_processor = PDFChunker()
+    chunks = pdf_processor.chunk_and_upload_to_duckdb("embeddings/malaysia_penal_code.pdf")
 
     pd.set_option('display.max_columns', None)  # Show all columns
     pd.set_option('display.max_rows', None)     # Show all rows
     pd.set_option('display.max_colwidth', None) # Show full column content
-    df = duckdb.query("SELECT * FROM 'raw_chunks.parquet'").df()
+    con = duckdb.connect("chunks.duckdb")
+    df = con.execute("SELECT * FROM raw_chunks").df()
     print(df)
