@@ -2,3 +2,4 @@
 .env
 output_chunks.txt
 output_combined_document.txt
+*.pyc
