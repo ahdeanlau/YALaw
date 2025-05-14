@@ -1,6 +1,9 @@
 from qdrant_client import QdrantClient, models
 from config.config_env import QDRANT_API_KEY, QDRANT_CLIENT_URL
 import json, duckdb
+import sys
+from qdrant_client.models import PointStruct
+from typing import List
 
 qdrant_client = QdrantClient(url=QDRANT_CLIENT_URL, api_key=QDRANT_API_KEY)
 
