@@ -1,53 +1,49 @@
 import streamlit as st
-import plotly.express as px
-import pandas as pd
-from datetime import datetime, timedelta
-import numpy as np
+from embeddings.embeddings import OpenAIEmbedder
+from embeddings.pdfchunker import PDFChunker
+import os
 
-# ---------- Setup ----------
-st.set_page_config(page_title="Website Traffic Dashboard", layout="wide")
+# Streamlit app title and description
+st.title("📄 PDF Chunking & Embedding with Qdrant")
+st.markdown("Chunk PDFs, generate embeddings via OpenAI, store locally in DuckDB, and upload to Qdrant.")
 
-# ---------- Sidebar ----------
-st.sidebar.title("📊 Navigation")
-page = st.sidebar.radio("Go to", ["Overview", "Trends", "Settings"])
+# User input for PDF file
+uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
 
-# ---------- Fake data ----------
-dates = pd.date_range(datetime.today() - timedelta(days=30), periods=30)
-data = {
-    "date": dates,
-    "visitors": (1000 + 300 * np.sin(np.linspace(0, 3.14 * 2, 30))).astype(int),
-    "bounce_rate": (50 + 10 * np.random.rand(30)).round(2),
-}
-df = pd.DataFrame(data)
+# Configuration inputs
+raw_db_path = st.text_input("DuckDB path for raw chunks", "chunks.duckdb")
+embedded_db_path = st.text_input("DuckDB path for embedded points", "embedded_points.duckdb")
+collection_name = st.text_input("Qdrant collection name", "embedded_collection")
+raw_table = st.text_input("DuckDB table name for raw chunks", "raw_chunks")
 
-# ---------- Header ----------
-st.title("🌐 Website Traffic Dashboard")
-st.markdown("Welcome to your dashboard. Here's how your site is performing lately.")
+if st.button("🚀 Start Processing"):
+    if uploaded_file:
+        # Save uploaded PDF temporarily
+        temp_pdf_path = os.path.join("temp_uploaded.pdf")
+        with open(temp_pdf_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-# ---------- Overview Page ----------
-if page == "Overview":
-    col1, col2, col3 = st.columns(3)
+        st.info("📄 Chunking PDF...")
+        chunker = PDFChunker()
+        chunker.chunk_and_upload_to_duckdb(temp_pdf_path, db_path=raw_db_path, table_name=raw_table)
+        st.success("✅ PDF chunked and stored locally.")
 
-    col1.metric("👥 Visitors Today", df["visitors"].iloc[-1], f"{df['visitors'].iloc[-1] - df['visitors'].iloc[-2]}")
-    col2.metric("📉 Bounce Rate", f"{df['bounce_rate'].iloc[-1]}%", f"{df['bounce_rate'].iloc[-1] - df['bounce_rate'].iloc[-2]:.2f}%")
-    col3.metric("📆 Date", df["date"].iloc[-1].strftime("%Y-%m-%d"))
+        st.info("🧠 Generating embeddings...")
+        embedder = OpenAIEmbedder()
+        qdrant_points = embedder.embed_text_chunks(duckdb_path=raw_db_path, table_name=raw_table)
+        st.success(f"✅ Generated {len(qdrant_points)} embeddings.")
 
-    st.markdown("### 📈 Traffic Over Time")
-    fig = px.line(df, x="date", y="visitors", title="Visitor Trends (Last 30 Days)")
-    st.plotly_chart(fig, use_container_width=True)
+        st.info("💾 Saving embeddings to DuckDB...")
+        embedder.upload_points_to_duckdb(qdrant_points, db_path=embedded_db_path)
+        st.success("✅ Embeddings saved locally.")
 
-# ---------- Trends Page ----------
-elif page == "Trends":
-    st.markdown("### 🔍 Deep Dive into Metrics")
-    selected_metric = st.selectbox("Select a metric to view", ["visitors", "bounce_rate"])
+        st.info("☁️ Uploading embeddings to Qdrant...")
+        embedder.upload_points_to_qdrant(qdrant_points, collection_name=collection_name)
+        st.success("✅ Uploaded embeddings to Qdrant.")
 
-    fig = px.area(df, x="date", y=selected_metric, title=f"{selected_metric.capitalize()} Over Time")
-    st.plotly_chart(fig, use_container_width=True)
+        # Clean up temp PDF
+        os.remove(temp_pdf_path)
 
-# ---------- Settings Page ----------
-elif page == "Settings":
-    st.markdown("### ⚙️ Customize Your Dashboard")
-    st.text_input("Website Name", "example.com")
-    st.selectbox("Time zone", ["UTC", "EST", "PST", "CST"])
-    st.color_picker("Primary Theme Color", "#4CAF50")
-    st.button("💾 Save Settings")
+        st.balloons()
+    else:
+        st.error("Please upload a PDF file to start.")
