@@ -59,6 +59,11 @@ class PDFChunker:
         db_path: str = "chunks.duckdb",
         table_name: str = "raw_chunks"
     ):
+        # Remove the existing DuckDB file if it exists
+        if os.path.exists(db_path):
+            os.remove(db_path)
+            self.logger.info(f"Deleted existing DuckDB file: {db_path}")
+
         # Prepare records: just id + payload (no vector yet)
         records = []
         for i, chunk in enumerate(chunks):
@@ -75,14 +80,11 @@ class PDFChunker:
         # Ensure the output directory exists
         os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
 
-        # Save to DuckDB
+        # Save to DuckDB (new file)
         con = duckdb.connect(db_path)
         con.register("df", df)
         con.execute(f"""
-            CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM df
-        """)
-        con.execute(f"""
-            INSERT INTO {table_name} SELECT * FROM df
+            CREATE TABLE {table_name} AS SELECT * FROM df
         """)
 
         self.logger.info(f"✅ Saved {len(chunks)} raw chunks to DuckDB table '{table_name}': {db_path}")
