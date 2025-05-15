@@ -7,11 +7,7 @@ from typing import List
 
 logger = logging.getLogger(__name__)
 
-print(qdrant_client.get_collections())
-
-client = QdrantClient(url="http://localhost:6333")
-
-
+qdrant_client = QdrantClient(url=QDRANT_CLIENT_URL, api_key=QDRANT_API_KEY)
 
 def prepare_qdrant_points_from_duckdb(db_path: str, table_or_parquet: str) -> List[PointStruct]:
     """
