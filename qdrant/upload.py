@@ -29,11 +29,11 @@ def prepare_qdrant_points_from_duckdb(db_path: str, table_or_parquet: str) -> Li
     con = duckdb.connect(database=db_path) if db_path else duckdb.connect()
 
     # Read data
-    df = con.execute(f"SELECT id, vector, payload FROM '{table_or_parquet}'").df()
+    qdrant_points_df = con.execute(f"SELECT id, vector, payload FROM '{table_or_parquet}'").df()
 
     # Convert to PointStruct list
     points = []
-    for _, row in df.iterrows():
+    for _, row in qdrant_points_df.iterrows():
         points.append(PointStruct(
             id=row["id"],
             vector=row["vector"],
