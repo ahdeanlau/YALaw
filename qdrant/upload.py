@@ -56,6 +56,8 @@ def upload_points_to_qdrant(points: List[PointStruct], collection_name: str):
                 distance=models.Distance.COSINE
             )
         )
+    else: 
+        logger.info(f"Collection '{collection_name}' already exists.")
     
     # Upload points
     qdrant_client.upsert(
@@ -67,4 +69,4 @@ def upload_points_to_qdrant(points: List[PointStruct], collection_name: str):
     
     # Close Qdrant connection
     qdrant_client.close()
-    print("Closed Qdrant connection.")
+    logger.info(f"Closed Qdrant connection.")
