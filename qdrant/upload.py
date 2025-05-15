@@ -46,9 +46,10 @@ def upload_points_to_qdrant(points: List[PointStruct], collection_name: str):
         points: List of PointStruct objects
         collection_name: Name of the Qdrant collection to upload to
     """ 
+  
     # Create collection if it doesn't exist
     if not qdrant_client.has_collection(collection_name):
-        qdrant_client.recreate_collection(
+        qdrant_client.create_collection(
             collection_name=collection_name,
             vectors_config=models.VectorParams(
                 size=len(points[0].vector),
