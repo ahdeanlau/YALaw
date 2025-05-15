@@ -1,11 +1,11 @@
 from qdrant_client import QdrantClient, models
 from config.config_env import QDRANT_API_KEY, QDRANT_CLIENT_URL
 import json, duckdb
-import sys
+import logging
 from qdrant_client.models import PointStruct
 from typing import List
 
-qdrant_client = QdrantClient(url=QDRANT_CLIENT_URL, api_key=QDRANT_API_KEY)
+logger = logging.getLogger(__name__)
 
 print(qdrant_client.get_collections())
 
