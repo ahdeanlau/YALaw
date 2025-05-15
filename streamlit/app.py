@@ -7,7 +7,10 @@ import logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    force=True,  # ensures Streamlit doesn't interfere
+    force=True,  # ensures overrides Streamlit default logger
+    handlers=[
+        logging.StreamHandler() # Output to console/terminal
+    ]
 )
 
 # Streamlit app title and description
