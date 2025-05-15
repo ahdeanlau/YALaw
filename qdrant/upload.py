@@ -64,9 +64,7 @@ def upload_points_to_qdrant(points: List[PointStruct], collection_name: str):
     )
 
     print(f"Uploaded {len(points)} points to Qdrant collection '{collection_name}'.")
-    # Close DuckDB connection
-    con.close()
-    print("Closed DuckDB connection.")
+    
     # Close Qdrant connection
     qdrant_client.close()
     print("Closed Qdrant connection.")
