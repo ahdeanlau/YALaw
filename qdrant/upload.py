@@ -48,7 +48,7 @@ def upload_points_to_qdrant(points: List[PointStruct], collection_name: str):
     """ 
   
     # Create collection if it doesn't exist
-    if not qdrant_client.has_collection(collection_name):
+    if not qdrant_client.collection_exists(collection_name):
         qdrant_client.create_collection(
             collection_name=collection_name,
             vectors_config=models.VectorParams(
