@@ -28,8 +28,8 @@ raw_table = st.text_input("DuckDB table name for raw chunks", "raw_chunks")
 
 if st.button("🚀 Start Processing"):
     if uploaded_file:
-        # Save uploaded PDF temporarily
-        temp_pdf_path = os.path.join("temp_uploaded.pdf")
+        # Save uploaded PDF temporarily using the uploaded file's name
+        temp_pdf_path = os.path.join(uploaded_file.name)
         with open(temp_pdf_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
