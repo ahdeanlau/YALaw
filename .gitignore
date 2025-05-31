@@ -4,3 +4,5 @@ output_chunks.txt
 output_combined_document.txt
 *.pyc
 /.vscode
+/output_acts
+/output_probe
