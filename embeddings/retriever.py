@@ -1,3 +1,9 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient, models
 from langchain_openai import OpenAIEmbeddings
@@ -111,8 +117,6 @@ if __name__ == "__main__":
 
     query = "What if the contract contains unfair terms?"
     docs = retriever.similarity_search(query, k=5)
-
-    
     
     print("\nTop matches:\n" + "-" * 40)
     for i, doc in enumerate(docs, 1):
