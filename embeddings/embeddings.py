@@ -11,7 +11,7 @@ from qdrant_client.http.models import PointStruct, VectorParams
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
 import logging
-from utils import _dig
+from .utils import _dig
 
 # Configure logging at the top of the script
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -107,7 +107,7 @@ class OpenAIEmbedder:
         records = []
         for idx, item in enumerate(data):
             try:
-                text = self._dig(item, json_field)
+                text = _dig(item, json_field)
             except KeyError:
                 self.logger.warning("Skipping item %d – field '%s' missing", idx, json_field)
                 continue
@@ -134,6 +134,35 @@ class OpenAIEmbedder:
         return qdrant_points
     
     def upload_points_to_duckdb(self, qdrant_points: List[PointStruct], db_path: str = "embedded_points.duckdb"):
+        """
+        Uploads a list of points to a DuckDB database file. Each point is stored with its ID, vector, and payload.
+
+        Args:
+            qdrant_points (List[PointStruct]): A list of points to be uploaded. Each point should be an instance of 
+            `PointStruct` with the following attributes:
+            - id (str): A unique identifier for the point.
+            - vector (List[float]): A list of numerical values representing the vector of the point.
+            - payload (dict): A dictionary containing additional metadata for the point.
+            db_path (str, optional): Path to the DuckDB database file where the points will be stored. Defaults to 
+            "embedded_points.duckdb".
+
+        Behavior:
+            - Converts the list of `PointStruct` objects into a pandas DataFrame.
+            - Ensures the directory for the database file exists.
+            - Creates a DuckDB table named `embedded_points` if it does not already exist.
+            - Inserts the points into the `embedded_points` table.
+            - Logs the number of points saved and the path to the database file.
+
+        Raises:
+            Exception: If there are issues with file creation, database connection, or data insertion.
+
+        Example:
+            >>> points = [
+            >>>     PointStruct(id="1", vector=[0.1, 0.2, 0.3], payload={"key": "value"}),
+            >>>     PointStruct(id="2", vector=[0.4, 0.5, 0.6], payload={"key": "another_value"})
+            >>> ]
+            >>> uploader.upload_points_to_duckdb(points, db_path="data/embedded_points.duckdb")
+        """
         self.logger.info("Uploading points to DuckDB file: %s", db_path)
         records = []
         for point in qdrant_points:
@@ -166,6 +195,13 @@ class OpenAIEmbedder:
         collection_name: str,
         qdrant_host: str = QDRANT_CLIENT_URL  # use your actual URL here
     ):
+        """
+        Uploads a point to Qdrant, creating the collection if it does not exist.
+        Args:
+            qdrant_points (List[PointStruct]): A list of points to be uploaded.
+            collection_name (str): The name of the Qdrant collection to upload to.
+            qdrant_host (str): The URL of the Qdrant server. Defaults to QDRANT_CLIENT_URL from config.  
+        """
         self.logger.info("Connecting to Qdrant at %s", qdrant_host)
 
         client = QdrantClient(
@@ -199,14 +235,22 @@ class OpenAIEmbedder:
         self.logger.info("✅ Uploaded %d points to collection '%s'.", len(qdrant_points), collection_name)
 
 # Usage example
+# if __name__ == "__main__":
+#     embedder = OpenAIEmbedder()
+#     qdrant_points = embedder.embed_text_chunks("chunks.duckdb")
+
+#     # Store the points in a Parquet file
+#     embedder.upload_points_to_duckdb(qdrant_points, db_path="embedded_points.duckdb")
+#     embedder.upload_points_to_qdrant(qdrant_points, collection_name="embedded_collection")
+
+#     # Convert points to a DataFrame and store as csv
+#     points_df = pd.DataFrame(qdrant_points)
+#     points_df.to_csv("embedded_points.csv", index=False)
+
 if __name__ == "__main__":
-    embedder = OpenAIEmbedder()
-    qdrant_points = embedder.embed_text_chunks("chunks.duckdb")
-
-    # Store the points in a Parquet file
-    embedder.upload_points_to_duckdb(qdrant_points, db_path="embedded_points.duckdb")
-    embedder.upload_points_to_qdrant(qdrant_points, collection_name="embedded_collection")
-
-    # Convert points to a DataFrame and store as csv
-    points_df = pd.DataFrame(qdrant_points)
-    points_df.to_csv("embedded_points.csv", index=False)
+    if __name__ == "__main__":
+        embedder = OpenAIEmbedder()
+        points = embedder.embed_json_file(
+            json_file_path="/Users/dlau/Documents/GitHub/YALaw/output_probe/commonlii__myca/1991/1.json",
+            json_field="full_text"      # example of a nested field 
+        )
