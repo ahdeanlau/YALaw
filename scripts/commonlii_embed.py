@@ -4,6 +4,10 @@ Embed every JSON file under `output_probe/` and upload all vectors to Qdrant.
 
 Edit the CONFIG block below to suit your project.
 """
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import os
 from typing import Iterator, List
@@ -46,15 +50,20 @@ def main() -> None:
     if not all_points:
         raise RuntimeError("No embeddings were created — check CONFIG settings.")
 
-    # One bulk upload for efficiency
-    embedder.upload_points_to_qdrant(all_points, collection_name=QDRANT_COLLECTION)
-
     # Optional local backup
     if SAVE_DUCKDB_PATH:
         embedder.upload_points_to_duckdb(all_points, db_path=SAVE_DUCKDB_PATH)
 
-    embedder.logger.info("✅ %d total points uploaded to '%s'",
-                         len(all_points), QDRANT_COLLECTION)
+    # Chunked upload to Qdrant: 10 points at a time
+    # BATCH_SIZE = 10
+    # for i in range(0, len(all_points), BATCH_SIZE):
+    #     chunk = all_points[i:i + BATCH_SIZE]
+    #     embedder.upload_points_to_qdrant(chunk, collection_name=QDRANT_COLLECTION)
+    #     embedder.logger.info("🔼 Uploaded points %d to %d", i + 1, i + len(chunk))
+    #     # Optional delay to reduce Qdrant server load
+
+    # embedder.logger.info("✅ %d total points uploaded to '%s'",
+    #                      len(all_points), QDRANT_COLLECTION)
 
 
 if __name__ == "__main__":
