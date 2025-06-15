@@ -48,7 +48,7 @@ from bs4 import BeautifulSoup, Comment, NavigableString
 # ────────────────────────────────────────────────────────────────────────────────
 DATE_RE = re.compile(r"([0-9]{1,2})\s+([A-Za-z]+)\s+([0-9]{4})")
 TITLE_CITATION_RE = re.compile(
-    r"^(?P<case>.*?)\s+-.*?\[(?P<year>[0-9]{4})\]\s+(?P<series>[A-Z]+)\s+(?P<number>[0-9]+)",
+    r"^(?P<case>.*?)(?=\s*\[\s*\d{4}\s*\]\s+[A-Z]+\s+\d+)\s*\[\s*(?P<year>\d{4})\s*\]\s+(?P<series>[A-Z]+)\s+(?P<number>\d+)",
     re.DOTALL,
 )
 CASE_NUMBER_RE = re.compile(r"\b([A-Z]-\s*\d+-\d+-\d+)\b")
@@ -235,7 +235,7 @@ def main(root: Path) -> None:
             print(f"✓ {json_path.resolve()}")
 
 if __name__ == "__main__":
-    root_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("output_probe/commonlii__myca")
+    root_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("output_probe/commonlii__mysshc")
     if not root_dir.exists():
         print(f"The directory '{root_dir}' does not exist.")
         sys.exit(1)
