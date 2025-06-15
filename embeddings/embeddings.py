@@ -12,6 +12,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
 import logging
 from .utils import _dig
+import numpy as np
 
 # Configure logging at the top of the script
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -124,6 +125,76 @@ class OpenAIEmbedder:
         # ── 3. Call OpenAI embeddings endpoint ──────────────────
         response = self.client.embeddings.create(input=texts, model=self.model)
         vectors = [r.embedding for r in response.data]
+
+        # ── 4. Wrap in PointStruct ──────────────────────────────
+        qdrant_points = [
+            PointStruct(id=rec["id"], vector=vec, payload=rec["payload"])
+            for rec, vec in zip(records, vectors)
+        ]
+        self.logger.info("Created %d Qdrant points from JSON file", len(qdrant_points))
+        return qdrant_points
+    
+    def embed_json_file_in_chunks(self,json_file_path: str, json_field: str, *, num_of_chunks: int = 3, id_field: str = "id") -> List[PointStruct]:
+        """
+        Read a JSON/NDJSON file, extract `json_field` from every item, create embeddings,
+        and return a list of PointStruct objects ready for Qdrant.
+
+        Parameters
+        ----------
+        json_file_path : str
+            Path to the JSON or NDJSON file.
+        json_field : str
+            The field that contains the text to embed (dot-notation allowed).
+        id_field : str, optional
+            Field to use as the point ID (default ``"id"``).
+            If the field is missing, a numeric index is used instead.
+
+        Returns
+        -------
+        List[PointStruct]
+        """
+        self.logger.info("Embedding JSON file '%s' (field=%s)", json_file_path, json_field)
+
+        # ── 1. Load file ─────────────────────────────────────────
+        with open(json_file_path, "r", encoding="utf-8") as f:
+            try:
+                data = json.load(f)                       # ordinary JSON
+            except json.JSONDecodeError:
+                f.seek(0)                                 # NDJSON fallback
+                data = [json.loads(line) for line in f if line.strip()]
+
+        # Uniform iterable
+        if isinstance(data, dict):
+            data = [data]
+
+        # ── 2. Extract texts & build records ────────────────────
+        records = []
+        for idx, item in enumerate(data):
+            try:
+                text = _dig(item, json_field)
+            except KeyError:
+                self.logger.warning("Skipping item %d – field '%s' missing", idx, json_field)
+                continue
+
+            rec_id = item.get(id_field, idx)
+            records.append({"id": rec_id, "text": text, "payload": item})
+
+        if not records:
+            raise ValueError(f"No items contained the field '{json_field}'")
+
+        texts = []
+        for r in records:
+            text = r["text"]
+            mid = len(text) // num_of_chunks # break text into two halves
+            texts.extend([text[:mid], text[mid:]])
+        self.logger.info("Generating embeddings for %d records", len(texts))
+
+        # ── 3. Call OpenAI embeddings endpoint ──────────────────
+        response = self.client.embeddings.create(input=texts, model=self.model)
+        vectors = [r.embedding for r in response.data]
+        
+        # Combine all vectors into one by calculating the mean of each dimension
+        vectors = [np.mean(vectors, axis=0).tolist()]
 
         # ── 4. Wrap in PointStruct ──────────────────────────────
         qdrant_points = [
