@@ -17,10 +17,13 @@ from embeddings.query_prompt import OpenAIQueryPrompt
 
 st.set_page_config(page_title="Case Finder", layout="wide")
 
-openai = OpenAIQueryPrompt()
+OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
+QDRANT_API_KEY = st.secrets["api_keys"]["QDRANT_API_KEY"]
+QDRANT_CLIENT_URL = st.secrets["api_keys"]["QDRANT_CLIENT_URL"]
 
 # --------------------- BACKEND ------------------------------------------
-retriever = QdrantQueryRetriever(collection_name="commonlii_cases")
+retriever = QdrantQueryRetriever(collection_name="commonlii_cases", qdrant_url=QDRANT_CLIENT_URL, qdrant_api_key=QDRANT_API_KEY, openai_api_key=OPENAI_API_KEY)
+openai = OpenAIQueryPrompt(OPENAI_API_KEY)
 
 def search_similar_cases(query: str, num_results: int = 20) -> List[Dict]:
     """
