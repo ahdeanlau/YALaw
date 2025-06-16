@@ -16,9 +16,6 @@ dotenv_path = Path(
 
 if not dotenv_path or not dotenv_path.is_file():
     logging.error("Could not find .env file (looked for %s)", dotenv_path or "<none>")
-    raise FileNotFoundError(
-        "No .env file found. Set DOTENV_FILE or place one in the project root."
-    )
 
 logging.info("Loading environment variables from: %s", dotenv_path)
 
@@ -30,7 +27,6 @@ def get_required_env_var(key: str) -> str:
     value = os.getenv(key)
     if not value:
         logging.error("Missing required environment variable: %s", key)
-        raise ValueError(f"Missing required environment variable: {key}")
     logging.debug("Using %s = %s", key, value if len(value) < 10 else value[:6] + "…")
     return value
 
