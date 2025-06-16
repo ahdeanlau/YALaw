@@ -23,7 +23,7 @@ class OpenAIEmbedder:
         self.logger = logging.getLogger(self.__class__.__name__)
         
         self.logger.info("Initializing OpenAIEmbedder with model: %s", model)
-        self.client = OpenAI(api_key=OPENAI_API_KEY)
+        self.client = OpenAI(api_key=api_key)
         self.model = model
 
     def _extract_texts_from_duckdb(self, duckdb_path: str, table_name: str) -> List[Dict]:
