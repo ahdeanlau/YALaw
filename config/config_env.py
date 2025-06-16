@@ -27,7 +27,6 @@ def get_required_env_var(key: str) -> str:
     value = os.getenv(key)
     if not value:
         logging.error("Missing required environment variable: %s", key)
-    logging.debug("Using %s = %s", key, value if len(value) < 10 else value[:6] + "…")
     return value
 
 # ── fetch the goodies ──────────────────────────────────────────────────────────
