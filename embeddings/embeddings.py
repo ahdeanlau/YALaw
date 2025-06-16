@@ -18,7 +18,7 @@ import numpy as np
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 class OpenAIEmbedder:
-    def __init__(self, model: str = "text-embedding-3-small"):
+    def __init__(self, model: str = "text-embedding-3-small", api_key: str = OPENAI_API_KEY):
         # Initialize logger
         self.logger = logging.getLogger(self.__class__.__name__)
         

@@ -39,7 +39,7 @@ if st.button("🚀 Start Processing"):
         st.success("✅ PDF chunked and stored locally.")
 
         st.info("🧠 Generating embeddings...")
-        embedder = OpenAIEmbedder()
+        embedder = OpenAIEmbedder(api_key=st.secrets["api_keys"]["OPENAI_API_KEY"])
         qdrant_points = embedder.embed_text_chunks(duckdb_path=raw_db_path, table_name=raw_table)
         st.success(f"✅ Generated {len(qdrant_points)} embeddings.")
 
