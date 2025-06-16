@@ -18,13 +18,15 @@ import numpy as np
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 class OpenAIEmbedder:
-    def __init__(self, model: str = "text-embedding-3-small", api_key: str = OPENAI_API_KEY):
+    def __init__(self, model: str = "text-embedding-3-small", openai_api_key: str = OPENAI_API_KEY, qdrant_api_key: str = QDRANT_API_KEY, qdrant_client_url: str = QDRANT_CLIENT_URL):
         # Initialize logger
         self.logger = logging.getLogger(self.__class__.__name__)
         
         self.logger.info("Initializing OpenAIEmbedder with model: %s", model)
-        self.client = OpenAI(api_key=api_key)
+        self.client = OpenAI(api_key=openai_api_key)
         self.model = model
+        self.qdrant_api_key = qdrant_api_key
+        self.qdrant_client_url = qdrant_client_url
 
     def _extract_texts_from_duckdb(self, duckdb_path: str, table_name: str) -> List[Dict]:
         self.logger.info("Extracting texts from DuckDB file: %s, table: %s", duckdb_path, table_name)
@@ -276,8 +278,8 @@ class OpenAIEmbedder:
         self.logger.info("Connecting to Qdrant at %s", qdrant_host)
 
         client = QdrantClient(
-            url=QDRANT_CLIENT_URL,
-            api_key=QDRANT_API_KEY
+            url=self.qdrant_client_url,
+            api_key=self.qdrant_api_key
         )
 
         # Ensure collection exists (handle 404 if it doesn't)
