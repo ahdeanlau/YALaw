@@ -3,20 +3,25 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-
 from typing import List, Dict, Any
-from qdrant_client import QdrantClient, models
+from qdrant_client.models import QueryResponse
+from qdrant_client import QdrantClient
 from langchain_openai import OpenAIEmbeddings
-from langchain_qdrant import QdrantVectorStore
-from langchain_core.documents import Document
 from config.config_env import QDRANT_API_KEY, QDRANT_CLIENT_URL, OPENAI_API_KEY
 
 
 class QdrantQueryRetriever:
     """
-    Minimal helper around LangChain's QdrantVectorStore to:
-      • embed an input query               (OpenAIEmbeddings)
-      • search the configured collection   (Qdrant HNSW)
+    A retriever class for performing semantic similarity search using OpenAI embeddings and Qdrant vector store.
+
+    This class:
+      - Converts a natural language query into a dense vector using OpenAI's embedding model.
+      - Queries the specified Qdrant collection to retrieve the most similar vectors/documents.
+
+    Attributes:
+        collection_name (str): The name of the Qdrant collection to search in.
+        client (QdrantClient): Instance of Qdrant client for querying the vector store.
+        embeddings (OpenAIEmbeddings): OpenAI embedding model used to convert text queries to vectors.
     """
 
     def __init__(
@@ -27,98 +32,73 @@ class QdrantQueryRetriever:
         qdrant_api_key: str | None = QDRANT_API_KEY,
         openai_api_key: str | None = OPENAI_API_KEY,
         embedding_model: str = "text-embedding-3-small",
-        embeddings_batch_size: int = 96,
     ) -> None:
-        # 1) Connect to Qdrant
+        """
+        Initializes the QdrantQueryRetriever with necessary configurations.
+
+        Args:
+            collection_name (str): Name of the Qdrant collection to be queried.
+            qdrant_url (str, optional): URL of the Qdrant instance.
+            qdrant_api_key (str, optional): API key for authenticating with Qdrant.
+            openai_api_key (str, optional): API key for accessing OpenAI's embedding model.
+            embedding_model (str, optional): Identifier of the OpenAI embedding model to use.
+        """
+        
+        self.collection_name = collection_name
+        
         self.client = QdrantClient(
             url=qdrant_url,
             api_key=qdrant_api_key,
         )
 
-        # 2) Build (or reconnect to) the VectorStore
         self.embeddings = OpenAIEmbeddings(
             model=embedding_model,
             openai_api_key=openai_api_key,
         )
-
-        self.vstore = QdrantVectorStore(
-            client=self.client,
-            collection_name=collection_name,
-            embedding=self.embeddings,
-            content_payload_key="chunk_text",
-        )
-
-    # --------------------------------------------------------------------- #
-    # Public helpers
-    # --------------------------------------------------------------------- #
 
     def embed_query(self, query: str) -> List[float]:
         """
         Returns the raw embedding vector.
         """
         return self.embeddings.embed_query(query)
-
-    def similarity_search(
+    
+    def similarity_search_by_query_with_dense_vector(
         self,
         query: str,
-        *,
-        k: int = 8,
-        score_threshold: float | None = None,
-        metadata_filter: Dict[str, Any] | None = None,
-    ) -> List[Document]:
+        limit: int = 10,
+    ) -> QueryResponse:
         """
-        Pull the top-k matching documents for `query`.
+        Performs a similarity search in Qdrant using the query's embedding vector.
 
-        Args
-        ----
-        query            The natural-language question.
-        k                How many documents to return (default 8).
-        score_threshold  Optional minimum similarity to accept.
-        metadata_filter  Optional Qdrant payload filter
-                         (same structure as qdrant-client's `models.Filter`).
+        Args:
+            query (str): Natural language query to embed and search with.
+            limit (int, optional): Number of top similar results to retrieve. Defaults to 10.
 
-        Returns
-        -------
-        List[Document]   LangChain Document objects with .page_content & .metadata
+        Returns:
+            QueryResponse: Qdrant response containing the matched vectors/documents.
+            QueryResponse.points: List of points (documents) that match the query.
         """
-        search_kwargs: Dict[str, Any] = {"k": k}
-        if score_threshold is not None:
-            search_kwargs["score_threshold"] = score_threshold
-        if metadata_filter is not None:
-            search_kwargs["filter"] = models.Filter(**metadata_filter)
-
-        return self.vstore.similarity_search(query, **search_kwargs)
-
-    # Convenience wrapper that gives (doc, score) tuples
-    def similarity_search_with_scores(
-        self,
-        query: str,
-        *,
-        k: int = 8,
-        metadata_filter: Dict[str, Any] | None = None,
-    ) -> List[tuple[Document, float]]:
-        return self.vstore.similarity_search_with_relevance_scores(
-            query=query,
-            k=k,
-            filter=models.Filter(**metadata_filter) if metadata_filter else None,
-        )
+        dense_vector = self.embed_query(query)
+        return self.client.query_points(self.collection_name, dense_vector, limit=limit)
 
 
 # --------------------------- Example usage ------------------------------- #
 
 if __name__ == "__main__":
     retriever = QdrantQueryRetriever(
-        collection_name="embedded_collection",
+        collection_name="commonlii_cases",
         qdrant_url=QDRANT_CLIENT_URL,
         qdrant_api_key=QDRANT_API_KEY,
         openai_api_key=OPENAI_API_KEY,
         embedding_model="text-embedding-3-small",
     )
 
-    query = "What if the contract contains unfair terms?"
-    docs = retriever.similarity_search(query, k=5)
+    QUERY = "Legal cases about property law in Sarawak"
     
-    print("\nTop matches:\n" + "-" * 40)
-    for i, doc in enumerate(docs, 1):
-        print(f"[{i}] Chunk {doc.metadata.get('_id', 'unknown')}:")
-        print(doc.page_content + " …\n")
+    try:
+        result = retriever.similarity_search_by_query_with_dense_vector(QUERY)
+    except Exception as e:
+        print(f"Query failed: {e}")
+
+    print("result:", result.points)
+    print("Type: ", type(result.points))
