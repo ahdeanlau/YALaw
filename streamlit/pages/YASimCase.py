@@ -1,128 +1,154 @@
-#!/usr/bin/env python3
-"""
-Scrape every Court-of-Appeal (MYCA) decision on CommonLII,
-organising the judgments into ./output/<YEAR>/<slug of case>.txt
-"""
 
-import os, re, time, logging
-from pathlib import Path
-from urllib.parse import urljoin, urlparse
+import sys
+import os
 
-import requests
-from bs4 import BeautifulSoup
-from tqdm import tqdm          # progress bar
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-# ------------------- configuration -------------------
+# Input the the description of the case, the user want to find
 
-BASE_URL   = "https://www.commonlii.org/my/cases/MYCA/"
-OUT_DIR    = Path("output")
-SLEEP_SECS = 1.2                              # be polite
-HEADERS    = {
-    "User-Agent": (
-        "MYCA-research-bot/1.0 (+https://example.org/contact; "
-        "polite; delays=1.2s)"
+# Press the button "Search"
+
+# Display the names of the relevant cases, eg 10 cases
+
+import streamlit as st
+from typing import List, Dict
+from embeddings.retriever import QdrantQueryRetriever
+
+st.set_page_config(page_title="Case Finder", layout="wide")
+
+# --------------------- BACKEND ------------------------------------------
+retriever = QdrantQueryRetriever(collection_name="commonlii_cases")
+
+def search_similar_cases(query: str, num_results: int = 20) -> List[Dict]:
+    """
+    
+    """
+    
+    query_response = retriever.similarity_search_by_query_with_dense_vector(
+        query=query,
+        limit=num_results
     )
-}
+    
+    results = []
+    for i in range(0, num_results):
+        results.append(
+            {
+                "id": query_response.points[i].id,
+                "title": f"Case {query_response.points[i].id}: {query_response.points[i].payload.get('case_name', 'Untitled')}",
+                "snippet": query_response.points[i].payload.get('court', 'Untitled'),
+                "url": query_response.points[i].payload.get('source_html_file', '#'),
+                "full_text": query_response.points[i].payload.get('full_text', 'Untitled'),
+                "similarity_score": query_response.points[i].score
+            }
+        )
+    return results
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s %(message)s"
+
+# --------------------- SESSION STATE -----------------------------------------
+
+if "results" not in st.session_state:
+    st.session_state["results"] = []
+if "page" not in st.session_state:
+    st.session_state["page"] = 0
+
+PAGE_SIZE = 10
+
+# --------------------- SIDEBAR ------------------------------------------------
+
+with st.sidebar:
+    st.markdown(
+        """
+        ### Tips 🔍
+        * Describe parties, facts, or legal issues succinctly.
+        * Use quotation marks for exact phrases.
+        * Filter by year or jurisdiction if known.
+        """
+    )
+
+# --------------------- MAIN LAYOUT -------------------------------------------
+
+st.title("⚖️  Legal Case Finder")
+
+st.markdown(
+    """
+    _Find the most relevant legal cases by describing the dispute or legal question._
+    Enter a few keywords below and click **Search**.
+    """
 )
 
-# ------------------- helpers -------------------------
-
-slug_re = re.compile(r"[^A-Za-z0-9]+")
-def slugify(text: str, limit: int = 150) -> str:
-    return slug_re.sub("_", text).strip("_")[:limit]
-
-def fetch(url: str) -> BeautifulSoup:
-    """GET a URL and return a BeautifulSoup DOM object."""
-    resp = requests.get(url, headers=HEADERS, timeout=30)
-    resp.raise_for_status()
-    return BeautifulSoup(resp.text, "html.parser")
-
-# ------------------- step 1: discover years ----------
-
-def discover_year_urls() -> list[tuple[str, str]]:
-    """
-    Return [(YYYY, full_url), ...] by parsing the MYCA landing page.
-    """
-    soup = fetch(BASE_URL)
-    year_links = []
-    for a in soup.select("a[href]"):
-        href = a["href"]
-        if re.fullmatch(r"\d{4}/?", href):
-            full = urljoin(BASE_URL, href)
-            year = href.strip("/")
-
-            # filter out duplicates (anchors appear twice on the page)
-            if (year, full) not in year_links:
-                year_links.append((year, full))
-
-    logging.info("Found %d year folders.", len(year_links))
-    return year_links
-
-# ------------------ step 2: discover cases per year ---
-
-def discover_case_links(year_url: str) -> list[tuple[str, str]]:
-    """
-    For a given /YYYY/ page return [(case_title, case_url), ...]
-    """
-    soup = fetch(year_url)
-
-    # Every decision link lives in an <a> whose href ends with ".html"
-    cases = []
-    for a in soup.select("a[href$='.html']"):
-        title = a.get_text(strip=True)
-        full  = urljoin(year_url, a["href"])
-
-        # Avoid index links like 'index.html' that some folders contain
-        if not re.search(r"/index\.html?$", full, re.I):
-            cases.append((title, full))
-    return cases
-
-# ------------------ step 3: download one judgment -----
-
-def scrape_case(case_title: str, case_url: str, year_dir: Path) -> None:
-    """
-    Save the entire visible text of `case_url` into a .txt file
-    located at   ./output/<YEAR>/<slug>.txt
-    """
-    outfile = year_dir / f"{slugify(case_title)}.txt"
-    if outfile.exists():
-        return                         # already scraped this case
-
-    soup = fetch(case_url)
-
-    # Most CommonLII pages are bare <body>.get_text() is fine
-    # but trim multiple blank lines:
-    text = "\n".join(
-        line.strip()
-        for line in soup.get_text("\n").splitlines()
-        if line.strip()
+# Search form --------------------------------------------------------------
+with st.form("search_form", clear_on_submit=False):
+    query = st.text_input(
+        "Describe the case you are looking for",
+        placeholder="e.g. breach of contract construction delay Kuala Lumpur"
     )
+    submitted = st.form_submit_button("🔎 Search")
 
-    outfile.write_text(
-        f"{case_title}\n{case_url}\n\n{text}",
-        encoding="utf-8"
+    if submitted:
+        st.session_state["results"] = search_similar_cases(query)
+        st.session_state["page"] = 0
+
+results = st.session_state["results"]
+page = st.session_state["page"]
+
+# Results list --------------------------------------------------------------
+if results:
+    total = len(results)
+    total_pages = (total - 1) // PAGE_SIZE + 1
+
+    st.markdown(
+        f"**Showing page {page + 1} of {total_pages}**  ​{total} "
+        f"result{'s' if total != 1 else ''} found"
     )
-    time.sleep(SLEEP_SECS)
+    st.divider()
 
-# ------------------ main orchestration ----------------
+    start, end = page * PAGE_SIZE, (page + 1) * PAGE_SIZE
+    page_slice = results[start:end]
 
-def main() -> None:
-    for year, year_url in discover_year_urls():
-        year_dir = OUT_DIR / year
-        year_dir.mkdir(parents=True, exist_ok=True)
+    for idx, case in enumerate(page_slice, start=1):
+        with st.container():
+            st.subheader(case["title"], anchor=False)
+            st.write(case["snippet"])
+            st.markdown(f"**Relevance**: <span style='color:{'green' if case['similarity_score'] > 0.8 else 'orange' if case['similarity_score'] > 0.6 else 'red'}'>{case['similarity_score']:.2f}</span>", unsafe_allow_html=True)
 
-        cases = discover_case_links(year_url)
-        logging.info("%s: %d cases", year, len(cases))
+            link_col, dl_col = st.columns([3, 1])
+            with link_col:
+                st.markdown(f"[🌐 View Source]({case['url']})")
+            with dl_col:
+                st.download_button(
+                    label="⬇️ Download",
+                    data=case["full_text"],
+                    file_name=f"{case['title'].replace(' ', '_')}.doc",
+                    mime="text/plain",
+                    key=f"dl-{start + idx}"
+                )
+            st.divider()
 
-        for title, url in tqdm(cases, desc=year, unit="case"):
-            try:
-                scrape_case(title, url, year_dir)
-            except Exception as e:
-                logging.error("❌  %s\n    %s", url, e)
+    # Pagination controls --------------------------------------------------
+    prev_col, next_col = st.columns(2)
+    with prev_col:
+        if st.button("⬅️ Previous", disabled=page == 0):
+            st.session_state["page"] -= 1
+            st.experimental_rerun()
+    with next_col:
+        if st.button("Next ➡️", disabled=page >= total_pages - 1):
+            st.session_state["page"] += 1
+            st.experimental_rerun() # TODO: replace with a more efficient rerun
+else:
+    st.info("Enter a description and click **Search** to view matching cases.")
 
-if __name__ == "__main__":
-    main()
+# --------------------- CUSTOM CSS -------------------------------------------
+
+st.markdown(
+    """
+    <style>
+    /* Tighten subheader spacing */
+    h3 { margin-top: 0.25rem; }
+    /* Unify divider look */
+    hr { margin: 0.75rem 0; }
+    /* Full‑width download buttons */
+    button[kind="download"] { width: 100%; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
