@@ -18,9 +18,9 @@ from embeddings.embeddings import OpenAIEmbedder          # <- your class
 from qdrant_client.http.models import PointStruct
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-ROOT_DIR            = "/Users/dlau/Documents/GitHub/YALaw/output_probe"  # folder to scan (recursive)
+ROOT_DIR            = "/Users/dlau/Documents/GitHub/YALaw/output_probe/"  # folder to scan (recursive)
 JSON_FIELD          = "full_text"      # field to embed (dot-notation OK)
-ID_FIELD            = None                      # field for the vector ID
+ID_FIELD            = "id"                      # field for the vector ID
 QDRANT_COLLECTION   = "commonlii_cases"        # Qdrant collection name
 SAVE_DUCKDB_PATH    = "commonlii_cases.duckdb"   # set to None to skip local save
 # ───────────────────────────────────────────────────────────────────────────────

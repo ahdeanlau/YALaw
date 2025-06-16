@@ -20,8 +20,8 @@ Captured fields (set to **null** if not found):
 | counsel_appellant    | "S.L. Tan – Tetuan S L Tan & Associates"                                  | "For the appellants:" section              |
 | counsel_respondent   | "Nadrah bte Mohamed – Tetuan Shatar Tan & Chee"                           | "For the respondent:" section              |
 | outcome              | "Appeal allowed with costs" (free text)                                   | heuristic search near end of judgment       |
-| source_html_file     | relative path to originating HTML                                          |                                             |
-| full_text            | full cleaned body text                                                     |                                             |
+| source_html_url      | relative path to originating HTML URL                                     |                                             |
+| full_text            | full cleaned body text                                                    |                                             |
 
 Run with:
 
@@ -97,7 +97,7 @@ def _collapse_ws(text: str) -> str:
 # Core extraction
 # ────────────────────────────────────────────────────────────────────────────────
 
-def extract_metadata(html_path: Path) -> Dict[str, Optional[str]]:
+def extract_metadata(html_path: Path, id: int) -> Dict[str, Optional[str]]:
     """Parse a CommonLII HTML file and return rich metadata."""
 
     with html_path.open("r", encoding="utf‑8", errors="replace") as fh:
@@ -148,6 +148,12 @@ def extract_metadata(html_path: Path) -> Dict[str, Optional[str]]:
         after = _collapse_ws(snippet.split(":", 1)[-1])
         coram = after if after else None
 
+    # source_html_url – relative path to the HTML file
+    source_html_url = None
+    i_tags = soup.find_all("i", class_="make-database")
+    for i_tag in i_tags:
+        source_html_url = i_tag.get_text(strip=True)
+
     # parties blocks (appellants / respondents)
     appellants = respondents = None
     party_block = soup.find(string=re.compile(r"PERAYU|APPELLANT", re.I))
@@ -196,6 +202,7 @@ def extract_metadata(html_path: Path) -> Dict[str, Optional[str]]:
         src_path = str(html_path.resolve())
 
     return {
+        "id": id,
         "case_name": case_name,
         "neutral_citation": neutral_citation,
         "case_number": case_number,
@@ -207,7 +214,7 @@ def extract_metadata(html_path: Path) -> Dict[str, Optional[str]]:
         "counsel_appellant": counsel_appellant,
         "counsel_respondent": counsel_respondent,
         "outcome": outcome,
-        "source_html_file": src_path,
+        "source_html_url": source_html_url,
         "full_text": full_text,
     }
 
@@ -222,9 +229,10 @@ def main(root: Path) -> None:
         return
 
     project_root = Path(__file__).resolve().parent.parent
-
+    index = 0
     for html_path in html_files:
-        meta = extract_metadata(html_path)
+        meta = extract_metadata(html_path, index)
+        index += 1
         json_path = html_path.with_suffix(".json")
         with json_path.open("w", encoding="utf‑8") as fp:
             json.dump(meta, fp, ensure_ascii=False, indent=2)
@@ -235,7 +243,7 @@ def main(root: Path) -> None:
             print(f"✓ {json_path.resolve()}")
 
 if __name__ == "__main__":
-    root_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("output_probe/commonlii__mysshc")
+    root_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("output_probe/")
     if not root_dir.exists():
         print(f"The directory '{root_dir}' does not exist.")
         sys.exit(1)
