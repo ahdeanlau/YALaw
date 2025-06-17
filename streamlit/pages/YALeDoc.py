@@ -53,21 +53,26 @@
 import streamlit as st
 import io
 from typing import Dict, List
+from st_copy_to_clipboard import st_copy_to_clipboard
+from embeddings.query_prompt import OpenAIQueryPrompt
+
+OPENAI_API_KEY = st.secrets["api_keys"]["OPENAI_API_KEY"]
+QDRANT_API_KEY = st.secrets["api_keys"]["QDRANT_API_KEY"]
+QDRANT_CLIENT_URL = st.secrets["api_keys"]["QDRANT_CLIENT_URL"]
 
 try:
     from docx import Document  # python-docx
 except ImportError:
     Document = None
 
-try:
-    from reportlab.pdfgen import canvas  # reportlab
-except ImportError:
-    canvas = None
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
 
 st.set_page_config(page_title="YALeDoc – AI Legal Document Generator", layout="centered")
 
 # -----------------------------------------------------------------------------
-# Mock backend functions  – replace with real implementations
+# Backend functions  – replace with real implementations
 # -----------------------------------------------------------------------------
 
 def mock_fetch_questions(doc_type: str) -> List[str]:
@@ -135,12 +140,11 @@ def mock_fetch_questions(doc_type: str) -> List[str]:
     }
     return qa_bank.get(doc_type, [])
 
+openai = OpenAIQueryPrompt(OPENAI_API_KEY)
 
-def mock_generate_document(prompt: str) -> str:
-    """Fake call to OpenAI – returns a canned response."""
-    return (
-        "<DRAFT OUTPUT>\n\n" + prompt + "\n\n<END OF DRAFT>"  # Replace with real completion
-    )
+def generate_document(doc_type: str, details: str) -> str:
+    return openai.draft_legal_document(doc_type, details)
+
 
 # -----------------------------------------------------------------------------
 # Helpers for download files
@@ -160,20 +164,26 @@ def _create_docx(text: str) -> io.BytesIO:
 
 
 def _create_pdf(text: str) -> io.BytesIO:
-    buffer = io.BytesIO()
-    if canvas is None:
-        buffer.write(text.encode("utf-8"))
-    else:
-        pdf = canvas.Canvas(buffer)
-        width, height = pdf._pagesize
-        y = height - 72
-        for line in text.split("\n"):
-            pdf.drawString(72, y, line)
-            y -= 14
-            if y < 72:
-                pdf.showPage()
-                y = height - 72
-        pdf.save()
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=(595.27, 841.89),  # A4 in points
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,
+        bottomMargin=72
+    )
+
+    styles = getSampleStyleSheet()
+    normal_style = styles["Normal"]
+    content = []
+
+    # Split the result into paragraphs and preserve line breaks
+    for paragraph in text.split("\n\n"):
+        content.append(Paragraph(paragraph.strip().replace("\n", "<br />"), normal_style))
+        content.append(Spacer(1, 12))
+
+    doc.build(content)
     buffer.seek(0)
     return buffer
 
@@ -278,7 +288,7 @@ if submitted:
             prompt_parts.append("Additional user info: " + st.session_state["extra"])
         full_prompt = "\n".join(prompt_parts)
 
-        st.session_state["generated"] = mock_generate_document(full_prompt)
+        st.session_state["generated"] = generate_document(doc_type, full_prompt)
 
 # -----------------------------------------------------------------------------
 # UI – Step 3: Display & downloads

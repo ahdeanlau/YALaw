@@ -88,7 +88,7 @@ features = [
     {
         "name": "YAEat",
         "emoji": "🥗",
-        "description": "Your AI‑powered lunchtime recommender for the busy lawyer!",
+        "description": "Feed your AI with legal documents!",
         "page": "pages/YAEat.py",
     },
 ]
